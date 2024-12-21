@@ -31,16 +31,17 @@ namespace FlickStick
 
         //const string _grabAnimString = "Grab";
         //const string _useAnimString = "UseHeldItem1";
-        const string _grabAnimName = "HoldOneHandedItem"; // HoldOneHandedItem
+        const string _grabAnimName = "KnifeStab"; // HoldOneHandedItem
         //const string _useAnimName = "KnifeStab";
 
         public override void Start()
         {
             base.Start();
             
-            if (overrideController != null) { return; }
+            //if (overrideController != null) { return; }
 
-            Animator playerAnimator = localPlayer.playerBodyAnimator;
+            //Animator playerAnimator = localPlayer.playerBodyAnimator;
+            Animator playerAnimator = localPlayer.GetComponentInChildren<Animator>();
             overrideController = new AnimatorOverrideController(playerAnimator.runtimeAnimatorController);
             overrideController[_grabAnimName] = PlayerGrabAnim;
             //overrideController[_useAnimName] = PlayerChargeAnim;
@@ -86,10 +87,10 @@ namespace FlickStick
 
             if (buttonDown) // Flick
             {
+                playerHeldBy.playerBodyAnimator.Play(_grabAnimName, -1);
                 //playerHeldBy.activatingItem = true;
-                animator.SetTrigger("flick");
-                playerHeldBy.playerBodyAnimator.Play(_grabAnimName); // for testing
-                //playerHeldBy.playerBodyAnimator.SetTrigger(_useAnimString);
+                //animator.SetTrigger("flick");
+                //EmotesAPI.CustomEmotesAPI.PlayAnimation("flickstickgrab");
             }
         }
 
@@ -110,21 +111,22 @@ namespace FlickStick
         void UseOverrideController(bool enable)
         {
             playerHeldBy.equippedUsableItemQE = enable;
+            Animator playerAnimator = playerHeldBy.GetComponentInChildren<Animator>();
 
             if (enable)
             {
                 //if (playerHeldBy.playerBodyAnimator.runtimeAnimatorController == overrideController) { logger.LogWarning("Already using override controller"); return; }
 
-                originalController = playerHeldBy.playerBodyAnimator.runtimeAnimatorController;
+                originalController = playerAnimator.runtimeAnimatorController;
 
-                playerHeldBy.playerBodyAnimator.runtimeAnimatorController = overrideController;
+                playerAnimator.runtimeAnimatorController = overrideController;
             }
             else
             {
                 //if (playerHeldBy.playerBodyAnimator.runtimeAnimatorController != overrideController) { logger.LogWarning("Already not using override controller"); return; }
                 if (originalController == null) { logger.LogError("Original controller is null"); return; }
 
-                playerHeldBy.playerBodyAnimator.runtimeAnimatorController = originalController;
+                playerAnimator.runtimeAnimatorController = originalController;
             }
         }
 

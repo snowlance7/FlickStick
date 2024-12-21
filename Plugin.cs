@@ -30,8 +30,9 @@ namespace FlickStick
 
         public static AssetBundle ModAssets;
 
-        //public static AnimationClip PlayerGrabAnimation;
-        //public static AnimationClip PlayerChargeAnimation;
+        public static AnimationClip PlayerGrabAnimation;
+        public static AnimationClip PlayerChargeAnimation;
+        public static AnimationClip PlayerChargeAnimation2;
 
         // Configs
         public static ConfigEntry<string> configLevelRarities;
@@ -80,8 +81,9 @@ namespace FlickStick
             }
             LoggerInstance.LogDebug($"Got AssetBundle at: {Path.Combine(sAssemblyLocation, "flickstick_assets")}");
 
-            //PlayerGrabAnimation = ModAssets.LoadAsset<AnimationClip>("Assets/ModAssets/Animations/Player_charge_anim.anim");
-            //PlayerChargeAnimation = ModAssets.LoadAsset<AnimationClip>("Assets/ModAssets/Animations/Player_hold_anim.anim");
+            PlayerGrabAnimation = ModAssets.LoadAsset<AnimationClip>("Assets/ModAssets/Animations/GrabStick.anim");
+            PlayerChargeAnimation = ModAssets.LoadAsset<AnimationClip>("Assets/ModAssets/Animations/ChargeStick.anim");
+            PlayerChargeAnimation2 = ModAssets.LoadAsset<AnimationClip>("Assets/ModAssets/Animations/ChargeStick2.anim");
 
             Item FlickStick = ModAssets.LoadAsset<Item>("Assets/ModAssets/FlickStickItem.asset");
             if (FlickStick == null) { LoggerInstance.LogError("Error: Couldnt get FlickStickItem from assets"); return; }
@@ -90,7 +92,7 @@ namespace FlickStick
             LethalLib.Modules.NetworkPrefabs.RegisterNetworkPrefab(FlickStick.spawnPrefab);
             LethalLib.Modules.Utilities.FixMixerGroups(FlickStick.spawnPrefab);
             LethalLib.Modules.Items.RegisterItem(FlickStick);
-
+            //Animation.instantiateAnimations();
             // Finished
             Logger.LogInfo($"{MyPluginInfo.PLUGIN_GUID} v{MyPluginInfo.PLUGIN_VERSION} has loaded!");
         }

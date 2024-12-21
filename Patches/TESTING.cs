@@ -1,9 +1,5 @@
 using BepInEx.Logging;
 using HarmonyLib;
-using System.Collections.Generic;
-using System.Linq;
-using Unity.Netcode;
-using UnityEngine;
 using static FlickStick.Plugin;
 
 /* bodyparts
@@ -21,16 +17,23 @@ using static FlickStick.Plugin;
 
 namespace FlickStick
 {
-    //[HarmonyPatch]
-    internal class TESTING : MonoBehaviour
+    [HarmonyPatch]
+    internal class TESTING
     {
         private static ManualLogSource logger = Plugin.LoggerInstance;
+        static bool toggle;
 
         [HarmonyPostfix, HarmonyPatch(typeof(HUDManager), nameof(HUDManager.PingScan_performed))]
         public static void PingScan_performedPostFix()
         {
 
         }
+
+        /*[HarmonyPostfix, HarmonyPatch(typeof(UnityEngine.Animator), nameof(UnityEngine.Animator.SetBool))]
+        public static void SetBoolPostfix(string name, bool value)
+        {
+            logger.LogDebug(name + ": " + value);
+        }*/
 
         [HarmonyPrefix, HarmonyPatch(typeof(HUDManager), nameof(HUDManager.SubmitChat_performed))]
         public static void SubmitChat_performedPrefix(HUDManager __instance)

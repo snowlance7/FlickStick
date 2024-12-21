@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 1170723897
+CRC: 2763909377
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 8b15172456cca1620d42d43ef51ab136
+    Hash: 8ca4bff0ad044bea6eebd01951b973aa
   TypeTreeHash:
     serializedVersion: 2
-    Hash: 96eaea8d80befeed2dc3e5e15c18e78c
+    Hash: 2a2c59d6a77bb4b48bb03d6a76165ac8
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 8b15172456cca1620d42d43ef51ab136
+    Hash: 8ca4bff0ad044bea6eebd01951b973aa
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -43,9 +43,9 @@ ClassTypes:
 - Class: 114
   Script: {fileID: 11500000, guid: 3c36d0a92cbb1f26a39169ef0eae393a, type: 3}
 - Class: 114
-  Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-- Class: 114
   Script: {fileID: -146706928, guid: 9b19d8abd63e97d498b89105d22fb6e3, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
 - Class: 115
   Script: {instanceID: 0}
 - Class: 137
@@ -63,4 +63,7 @@ SerializeReferenceClassIdentifiers:
   ClassName: Battery
 Assets:
 - Assets/ModAssets/FlickStickItem.asset
+- Assets/ModAssets/Animations/ChargeStick2.anim
+- Assets/ModAssets/Animations/ChargeStick.anim
+- Assets/ModAssets/Animations/GrabStick.anim
 Dependencies: []
