@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 2763909377
+CRC: 3504390405
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 8ca4bff0ad044bea6eebd01951b973aa
+    Hash: 94f9715e3a8dd4b3fea33bb52134f433
   TypeTreeHash:
     serializedVersion: 2
-    Hash: 2a2c59d6a77bb4b48bb03d6a76165ac8
+    Hash: 86498116fefae0109dfef23bdd169828
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 8ca4bff0ad044bea6eebd01951b973aa
+    Hash: 94f9715e3a8dd4b3fea33bb52134f433
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -63,7 +63,4 @@ SerializeReferenceClassIdentifiers:
   ClassName: Battery
 Assets:
 - Assets/ModAssets/FlickStickItem.asset
-- Assets/ModAssets/Animations/ChargeStick2.anim
-- Assets/ModAssets/Animations/ChargeStick.anim
-- Assets/ModAssets/Animations/GrabStick.anim
 Dependencies: []

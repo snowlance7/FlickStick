@@ -30,18 +30,14 @@ namespace FlickStick
 
         public static AssetBundle ModAssets;
 
-        public static AnimationClip PlayerGrabAnimation;
-        public static AnimationClip PlayerChargeAnimation;
-        public static AnimationClip PlayerChargeAnimation2;
-
         // Configs
         public static ConfigEntry<string> configLevelRarities;
         public static ConfigEntry<string> configCustomLevelRarities;
-        public static ConfigEntry<string> configMinValue;
-        public static ConfigEntry<string> configMaxValue;
+        public static ConfigEntry<int> configMinValue;
+        public static ConfigEntry<int> configMaxValue;
 
-        public static ConfigEntry<string> configEnableStore;
-        public static ConfigEntry<string> configStorePrice;
+        public static ConfigEntry<bool> configEnableStore;
+        public static ConfigEntry<int> configStorePrice;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
 
@@ -64,11 +60,11 @@ namespace FlickStick
             
             configLevelRarities = Config.Bind("Scrap", "Level Rarities", "ExperimentationLevel:10, AssuranceLevel:10, VowLevel:10, OffenseLevel:30, AdamanceLevel:50, MarchLevel:50, RendLevel:50, DineLevel:50, TitanLevel:80, ArtificeLevel:80, EmbrionLevel:100, Modded:30", "Rarities for each level. See default for formatting. Leave blank to prevent spawning as scrap.");
             configCustomLevelRarities = Config.Bind("Scrap", "Custom Level Rarities", "", "Rarities for modded levels. Same formatting as level rarities.");
-            configMinValue = Config.Bind("Scrap", "", "", "");
-            configMaxValue = Config.Bind("Scrap", "", "", "");
+            configMinValue = Config.Bind("Scrap", "Min Value", 50, "Min scrap value of the flickstick.");
+            configMaxValue = Config.Bind("Scrap", "Max Value", 100, "Max scrap value of the flickstick.");
 
-            configEnableStore = Config.Bind("Store", "", "", "");
-            configStorePrice = Config.Bind("Store", "", "", "");
+            configEnableStore = Config.Bind("Store", "Enable Store", true, "Whether or not the flickstick should be buyable in the store.");
+            configStorePrice = Config.Bind("Store", "Store Price", 300, "Price of the flickstick in the store.");
 
             // Loading Assets
             string sAssemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -81,20 +77,96 @@ namespace FlickStick
             }
             LoggerInstance.LogDebug($"Got AssetBundle at: {Path.Combine(sAssemblyLocation, "flickstick_assets")}");
 
-            PlayerGrabAnimation = ModAssets.LoadAsset<AnimationClip>("Assets/ModAssets/Animations/GrabStick.anim");
-            PlayerChargeAnimation = ModAssets.LoadAsset<AnimationClip>("Assets/ModAssets/Animations/ChargeStick.anim");
-            PlayerChargeAnimation2 = ModAssets.LoadAsset<AnimationClip>("Assets/ModAssets/Animations/ChargeStick2.anim");
-
             Item FlickStick = ModAssets.LoadAsset<Item>("Assets/ModAssets/FlickStickItem.asset");
             if (FlickStick == null) { LoggerInstance.LogError("Error: Couldnt get FlickStickItem from assets"); return; }
             LoggerInstance.LogDebug($"Got FlickStick prefab");
 
+            FlickStick.minValue = configMinValue.Value;
+            FlickStick.maxValue = configMaxValue.Value;
+
             LethalLib.Modules.NetworkPrefabs.RegisterNetworkPrefab(FlickStick.spawnPrefab);
             LethalLib.Modules.Utilities.FixMixerGroups(FlickStick.spawnPrefab);
-            LethalLib.Modules.Items.RegisterItem(FlickStick);
-            //Animation.instantiateAnimations();
+            LethalLib.Modules.Items.RegisterScrap(FlickStick, GetLevelRarities(configLevelRarities.Value), GetCustomLevelRarities(configCustomLevelRarities.Value));
+
+            if (configEnableStore.Value)
+            {
+                LethalLib.Modules.Items.RegisterShopItem(FlickStick, configStorePrice.Value);
+            }
+
             // Finished
             Logger.LogInfo($"{MyPluginInfo.PLUGIN_GUID} v{MyPluginInfo.PLUGIN_VERSION} has loaded!");
+        }
+
+        public Dictionary<Levels.LevelTypes, int> GetLevelRarities(string levelsString)
+        {
+            try
+            {
+                Dictionary<Levels.LevelTypes, int> levelRaritiesDict = new Dictionary<Levels.LevelTypes, int>();
+
+                if (levelsString != null && levelsString != "")
+                {
+                    string[] levels = levelsString.Split(',');
+
+                    foreach (string level in levels)
+                    {
+                        string[] levelSplit = level.Split(':');
+                        if (levelSplit.Length != 2) { continue; }
+                        string levelType = levelSplit[0].Trim();
+                        string levelRarity = levelSplit[1].Trim();
+
+                        if (Enum.TryParse<Levels.LevelTypes>(levelType, out Levels.LevelTypes levelTypeEnum) && int.TryParse(levelRarity, out int levelRarityInt))
+                        {
+                            levelRaritiesDict.Add(levelTypeEnum, levelRarityInt);
+                        }
+                        else
+                        {
+                            LoggerInstance.LogError($"Error: Invalid level rarity: {levelType}:{levelRarity}");
+                        }
+                    }
+                }
+                return levelRaritiesDict;
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Error: {e}");
+                return null!;
+            }
+        }
+
+        public Dictionary<string, int> GetCustomLevelRarities(string levelsString)
+        {
+            try
+            {
+                Dictionary<string, int> customLevelRaritiesDict = new Dictionary<string, int>();
+
+                if (levelsString != null)
+                {
+                    string[] levels = levelsString.Split(',');
+
+                    foreach (string level in levels)
+                    {
+                        string[] levelSplit = level.Split(':');
+                        if (levelSplit.Length != 2) { continue; }
+                        string levelType = levelSplit[0].Trim();
+                        string levelRarity = levelSplit[1].Trim();
+
+                        if (int.TryParse(levelRarity, out int levelRarityInt))
+                        {
+                            customLevelRaritiesDict.Add(levelType, levelRarityInt);
+                        }
+                        else
+                        {
+                            LoggerInstance.LogError($"Error: Invalid level rarity: {levelType}:{levelRarity}");
+                        }
+                    }
+                }
+                return customLevelRaritiesDict;
+            }
+            catch (Exception e)
+            {
+                Logger.LogError($"Error: {e}");
+                return null!;
+            }
         }
 
         private static void InitializeNetworkBehaviours()

@@ -1,10 +1,13 @@
 ﻿using BepInEx.Logging;
 using GameNetcodeStuff;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 using static FlickStick.Plugin;
+using static UnityEngine.LightAnchor;
 
 namespace FlickStick
 {
@@ -22,62 +25,48 @@ namespace FlickStick
         public AudioClip SlideSFX;
         public Animator animator;
         public Transform PointerTip;
-        public AnimationClip PlayerGrabAnim;
-        public AnimationClip PlayerChargeAnim;
-
-        public static RuntimeAnimatorController originalController;
-        public static AnimatorOverrideController overrideController;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-        //const string _grabAnimString = "Grab";
-        //const string _useAnimString = "UseHeldItem1";
-        const string _grabAnimName = "KnifeStab"; // HoldOneHandedItem
-        //const string _useAnimName = "KnifeStab";
+        PlayerControllerB? previousPlayerHeldBy;
+        const int mask = 1084754248;
+        List<RaycastHit> hits = [];
 
-        public override void Start()
+        // Configs
+        float pokeForce = 5f;
+        float flickForce = 10f;
+        float flipoffRange = 10f;
+
+        public override void Update()
         {
-            base.Start();
-            
-            //if (overrideController != null) { return; }
-
-            //Animator playerAnimator = localPlayer.playerBodyAnimator;
-            Animator playerAnimator = localPlayer.GetComponentInChildren<Animator>();
-            overrideController = new AnimatorOverrideController(playerAnimator.runtimeAnimatorController);
-            overrideController[_grabAnimName] = PlayerGrabAnim;
-            //overrideController[_useAnimName] = PlayerChargeAnim;
+            base.Update();
+            if (playerHeldBy != null)
+            {
+                previousPlayerHeldBy = playerHeldBy;
+            }
         }
-
-        /*public override void GrabItem()
-        {
-            base.GrabItem();
-            UseOverrideController(true);
-            playerHeldBy.playerBodyAnimator.SetBool(_grabAnimString, true);
-        }*/
 
         public override void EquipItem()
         {
             base.EquipItem();
-            UseOverrideController(true);
-            //playerHeldBy.playerBodyAnimator.SetBool(_grabAnimString, true);
-            //playerHeldBy.playerBodyAnimator.Play(_grabAnimName);
+            playerHeldBy.equippedUsableItemQE = true;
         }
 
         public override void DiscardItem()
         {
             playerHeldBy.activatingItem = false;
-            UseOverrideController(false);
+            playerHeldBy.equippedUsableItemQE = true;
             base.DiscardItem();
         }
 
         public override void PocketItem()
         {
-            UseOverrideController(false);
+            playerHeldBy.equippedUsableItemQE = true;
             base.PocketItem();
         }
 
         public override void DestroyObjectInHand(PlayerControllerB playerHolding)
         {
-            UseOverrideController(false);
+            playerHeldBy.equippedUsableItemQE = true;
             base.DestroyObjectInHand(playerHolding);
         }
 
@@ -87,10 +76,7 @@ namespace FlickStick
 
             if (buttonDown) // Flick
             {
-                playerHeldBy.playerBodyAnimator.Play(_grabAnimName, -1);
-                //playerHeldBy.activatingItem = true;
-                //animator.SetTrigger("flick");
-                //EmotesAPI.CustomEmotesAPI.PlayAnimation("flickstickgrab");
+                playerHeldBy.activatingItem = true;
             }
         }
 
@@ -108,32 +94,71 @@ namespace FlickStick
             }
         }
 
-        void UseOverrideController(bool enable)
+        public List<RaycastHit> GetRaycastHits(float distance = 0.75f)
         {
-            playerHeldBy.equippedUsableItemQE = enable;
-            Animator playerAnimator = playerHeldBy.GetComponentInChildren<Animator>();
+            if (previousPlayerHeldBy == null) { return new List<RaycastHit>(); }
+            return Physics.SphereCastAll(previousPlayerHeldBy.gameplayCamera.transform.position, 0.3f, previousPlayerHeldBy.gameplayCamera.transform.forward, distance, mask, QueryTriggerInteraction.Collide).ToList();
+        }
 
-            if (enable)
-            {
-                //if (playerHeldBy.playerBodyAnimator.runtimeAnimatorController == overrideController) { logger.LogWarning("Already using override controller"); return; }
+        void AddForce(EnemyAI enemy, float force, float duration = 1f)
+        {
+            Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized * 2;
+            Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized;
+            Vector3 direction = (forwardDirection + upDirection).normalized;
 
-                originalController = playerAnimator.runtimeAnimatorController;
+            enemy.agent.enabled = false;
+            Rigidbody rb = enemy.gameObject.AddComponent<Rigidbody>();
+            rb.isKinematic = false;
 
-                playerAnimator.runtimeAnimatorController = overrideController;
-            }
-            else
-            {
-                //if (playerHeldBy.playerBodyAnimator.runtimeAnimatorController != overrideController) { logger.LogWarning("Already not using override controller"); return; }
-                if (originalController == null) { logger.LogError("Original controller is null"); return; }
+            rb.velocity = Vector3.zero;
+            rb.AddForce(direction.normalized * force, ForceMode.Impulse);
+            StartCoroutine(RemoveRigidbodyAfterDelay(enemy, duration));
+        }
 
-                playerAnimator.runtimeAnimatorController = originalController;
-            }
+        void AddForce(PlayerControllerB player, float force, float duration = 1f)
+        {
+            Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized * 2;
+            Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized;
+            Vector3 direction = (forwardDirection + upDirection).normalized;
+
+            Rigidbody rb = player.playerRigidbody;
+            rb.isKinematic = false;
+            rb.velocity = Vector3.zero;
+            player.externalForceAutoFade += direction * force;
+            StartCoroutine(ResetKinematicsAfterDelay(player, duration));
+        }
+
+        IEnumerator ResetKinematicsAfterDelay(PlayerControllerB player, float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            player.playerRigidbody.isKinematic = true;
+        }
+
+        IEnumerator RemoveRigidbodyAfterDelay(EnemyAI enemy, float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            Destroy(enemy.gameObject.GetComponent<Rigidbody>());
+            enemy.agent.enabled = true;
         }
 
         // Animation stuff
         public void Poke()
         {
+            hits = GetRaycastHits();
+            foreach (var hit in hits)
+            {
+                if (hit.transform.TryGetComponent<PlayerControllerB>(out PlayerControllerB player))
+                {
+                    AddForce(player, pokeForce);
+                    return;
+                }
 
+                if (hit.transform.TryGetComponent<EnemyAI>(out EnemyAI enemy))
+                {
+                    AddForce(enemy, pokeForce);
+                    enemy.SetEnemyStunned(true, 1f, previousPlayerHeldBy);
+                }
+            }
         }
 
         public void Flip()

@@ -46,6 +46,8 @@
     </PropertyGroup>
     <ItemGroup>
       <None Remove=".editorconfig" />
+      <None Remove=".gitattributes" />
+      <None Remove=".gitignore" />
     </ItemGroup>
 
     <!-- Primary Package References -->
@@ -55,7 +57,6 @@
         <PackageReference Include="BepInEx.Core" Version="5.*" PrivateAssets="all" />
         <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
         <PackageReference Include="Evaisa.LethalLib" Version="0.16.2" />
-        <PackageReference Include="Gemumoddo.LethalCompany.LethalEmotesAPI" Version="1.15.9" />
         <PackageReference Include="LethalCompany.GameLibs.Steam" Version="*-*" Publicize="true" PrivateAssets="all" />
         <PackageReference Include="UnityEngine.Modules" Version="2022.3.9" IncludeAssets="compile" PrivateAssets="all" />
     </ItemGroup>
@@ -73,13 +74,4 @@
     <Target Name="NetcodePatch" AfterTargets="PostBuildEvent">
         <Exec Command="dotnet netcode-patch &quot;$(TargetPath)&quot; @(ReferencePathWithRefAssemblies->'&quot;%(Identity)&quot;', ' ')" />
     </Target>
-    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-      <Exec Command="xcopy &quot;$(AssetsPath)&quot; &quot;$(PluginDirectory)&quot; /Y" />
-    </Target>
-    <ItemGroup>
-      <EditorConfigFiles Remove="C:\Users\snowl\source\repos\FlickStick\.editorconfig" />
-    </ItemGroup>
-    <ItemGroup>
-      <EditorConfigFiles Remove="C:\Users\snowl\source\repos\FlickStick\.editorconfig" />
-    </ItemGroup>
 </Project>
