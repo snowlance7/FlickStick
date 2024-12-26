@@ -365,3 +365,5 @@ FodyWeavers.xsd
 /ThunderStore/CHANGELOG.md
 /ThunderStore/manifest.json
 /ThunderStore/README.md
+/.gitattributes
+/.gitignore
