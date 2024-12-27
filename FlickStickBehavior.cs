@@ -25,10 +25,11 @@ namespace FlickStick
         public AudioClip SlideSFX;
         public Animator animator;
         public Transform PointerTip;
+        public ScanNodeProperties ScanNode;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         PlayerControllerB? previousPlayerHeldBy;
-        const int mask = 1084754248;
+        const int mask = 524288;
         List<RaycastHit> hits = [];
 
         // Configs
@@ -39,6 +40,15 @@ namespace FlickStick
         float flipoffRange = 30f;
         float pokeRange = 5f;
         float flickRange = 5f;
+
+        public override void Start()
+        {
+            base.Start();
+            if (UnityEngine.Random.Range(0, 100) == 1)
+            {
+                ScanNode.headerText = "Flicky Flicky Willy Donker";
+            }
+        }
 
         public override void Update()
         {
@@ -107,18 +117,18 @@ namespace FlickStick
         public List<RaycastHit> GetRaycastHits(float distance = 1f, float radius = 1f)
         {
             if (previousPlayerHeldBy == null) { return new List<RaycastHit>(); }
-            //VisualizeSphereCast(PointerTip.position, previousPlayerHeldBy.playerEye.transform.forward, radius, distance, 3f);
+            VisualizeSphereCast(PointerTip.position, previousPlayerHeldBy.playerEye.transform.forward, radius, distance, 5f);
             return Physics.SphereCastAll(PointerTip.position, radius, previousPlayerHeldBy.playerEye.transform.forward, distance, mask, QueryTriggerInteraction.Collide).ToList();
         }
 
-        void AddForce(EnemyAI enemy, float force, float duration = 1f)
+        void AddForce(EnemyAI enemy, float force, float duration = 1f) // TODO: Works but the enemies can clip into walls
         {
             Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized * 2;
             Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized;
             Vector3 direction = (forwardDirection + upDirection).normalized;
 
             enemy.agent.enabled = false;
-            Rigidbody rb = enemy.gameObject.AddComponent<Rigidbody>();
+            Rigidbody rb = enemy.gameObject.TryGetComponent<Rigidbody>(out Rigidbody _rb) ? _rb : enemy.gameObject.AddComponent<Rigidbody>();
             rb.isKinematic = false;
 
             rb.velocity = Vector3.zero;
@@ -169,8 +179,10 @@ namespace FlickStick
                     return;
                 }
 
-                if (hit.transform.TryGetComponent<EnemyAI>(out EnemyAI enemy))
+                if (hit.transform.TryGetComponent<EnemyAICollisionDetect>(out EnemyAICollisionDetect enemyCollision)) // TODO: Look for EnemyAICollisionDetect, look at the shootgun function again
                 {
+                    EnemyAI? enemy = enemyCollision.mainScript;
+                    if (enemy == null) { continue; }
                     logger.LogDebug(enemy.enemyType.enemyName);
                     AddForce(enemy, pokeForce);
                     enemy.SetEnemyStunned(true, 1f, previousPlayerHeldBy);
@@ -188,9 +200,11 @@ namespace FlickStick
             logger.LogDebug("Flipped off:");
             foreach (var hit in hits)
             {
-                //logger.LogDebug(hit.transform.gameObject.name);
-                if (hit.transform.gameObject.TryGetComponent<EnemyAI>(out EnemyAI enemy)) // TODO: Not working for thumpers or other enemies
+                logger.LogDebug(hit.transform.gameObject.name);
+                if (hit.transform.gameObject.TryGetComponent<EnemyAICollisionDetect>(out EnemyAICollisionDetect enemyCollision)) // TODO: Not working for thumpers or other enemies
                 {
+                    EnemyAI? enemy = enemyCollision.mainScript;
+                    if (enemy == null) { continue; }
                     logger.LogDebug(enemy.enemyType.enemyName);
                     enemy.targetPlayer = previousPlayerHeldBy;
                 }
@@ -215,8 +229,10 @@ namespace FlickStick
                     return;
                 }
 
-                if (hit.transform.TryGetComponent<EnemyAI>(out EnemyAI enemy))
+                if (hit.transform.TryGetComponent<EnemyAICollisionDetect>(out EnemyAICollisionDetect enemyCollision))
                 {
+                    EnemyAI? enemy = enemyCollision.mainScript;
+                    if (enemy == null) { continue; }
                     logger.LogDebug(enemy.enemyType.enemyName);
                     AddForce(enemy, flickForce);
                 }
@@ -231,16 +247,22 @@ namespace FlickStick
             logger.LogDebug("Activating item false called");
         }
 
-        void VisualizeSphereCast(Vector3 origin, Vector3 direction, float radius, float maxDistance, float duration)
+        void VisualizeSphereCastOld(Vector3 origin, Vector3 direction, float radius, float maxDistance, float duration)
         {
             // Draw the initial sphere
             GameObject startSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            SphereCollider collider1 = startSphere.AddComponent<SphereCollider>();
+            collider1.isTrigger = true;
+            collider1.radius = radius;
             startSphere.transform.position = origin;
             startSphere.transform.localScale = Vector3.one * radius * 2; // Diameter is 2 * radius
             Destroy(startSphere, duration);
 
             // Draw the path of the sphere cast
             GameObject endSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            SphereCollider collider2 = endSphere.AddComponent<SphereCollider>();
+            collider2.isTrigger = true;
+            collider2.radius = radius;
             Vector3 endPosition = origin + direction.normalized * maxDistance;
             endSphere.transform.position = endPosition;
             endSphere.transform.localScale = Vector3.one * radius * 2;
@@ -256,8 +278,29 @@ namespace FlickStick
             lineRenderer.endWidth = radius * 0.1f;
             lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
             lineRenderer.startColor = Color.red;
-            lineRenderer.endColor = Color.red;
+            lineRenderer.endColor = Color.white;
             Destroy(line, duration);
+        }
+
+        void VisualizeSphereCast(Vector3 origin, Vector3 direction, float radius, float maxDistance, float duration)
+        {
+            GameObject line = new GameObject("SphereCastLine");
+            line.layer = LayerMask.NameToLayer("Ignore Raycast"); // Assign to "Ignore Raycast" layer
+
+            LineRenderer lineRenderer = line.AddComponent<LineRenderer>();
+            lineRenderer.positionCount = 2;
+            lineRenderer.SetPosition(0, origin);
+            Vector3 endPosition = origin + direction.normalized * maxDistance;
+            lineRenderer.SetPosition(1, endPosition);
+            lineRenderer.startWidth = radius * 0.1f;
+            lineRenderer.endWidth = radius * 0.1f;
+            lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            lineRenderer.startColor = Color.red;
+            lineRenderer.endColor = Color.red;
+
+            // Destroy the line after the duration
+            Destroy(line, duration);
+
         }
     }
 }
