@@ -35,7 +35,7 @@ namespace FlickStick
         // Configs
         float pokeStunTime = 1f;
         float pokeForce = 15f;
-        float flickForce = 50f;
+        float flickForce = 30f;
 
         float flipoffRange = 30f;
         float pokeRange = 5f;
@@ -123,23 +123,26 @@ namespace FlickStick
 
         void AddForce(EnemyAI enemy, float force, float duration = 1f) // TODO: Works but the enemies can clip into walls
         {
-            Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized * 2;
-            Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized;
+            if (previousPlayerHeldBy == null) { logger.LogError("previousPlayerHeldBy is null"); return; }
+            Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized;
+            Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized * 2;
             Vector3 direction = (forwardDirection + upDirection).normalized;
 
+            //Rigidbody rb = enemy.gameObject.TryGetComponent<Rigidbody>(out Rigidbody _rb) ? _rb : enemy.gameObject.AddComponent<Rigidbody>();
+            if (!enemy.gameObject.TryGetComponent<Rigidbody>(out Rigidbody rb)) { logger.LogWarning("Couldnt get rigidbody for enemy " + enemy.enemyType.enemyName); return; }
             enemy.agent.enabled = false;
-            Rigidbody rb = enemy.gameObject.TryGetComponent<Rigidbody>(out Rigidbody _rb) ? _rb : enemy.gameObject.AddComponent<Rigidbody>();
             rb.isKinematic = false;
 
             rb.velocity = Vector3.zero;
             rb.AddForce(direction.normalized * force, ForceMode.Impulse);
-            StartCoroutine(RemoveRigidbodyAfterDelay(enemy, duration));
+            StartCoroutine(ResetKinematicsAfterDelay(enemy, duration));
         }
 
         void AddForce(PlayerControllerB player, float force, float duration = 1f)
         {
-            Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized * 2;
-            Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized;
+            if (previousPlayerHeldBy == null) { logger.LogError("previousPlayerHeldBy is null"); return; }
+            Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized;
+            Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized * 2;
             Vector3 direction = (forwardDirection + upDirection).normalized;
 
             Rigidbody rb = player.playerRigidbody;
@@ -155,10 +158,11 @@ namespace FlickStick
             player.playerRigidbody.isKinematic = true;
         }
 
-        IEnumerator RemoveRigidbodyAfterDelay(EnemyAI enemy, float delay)
+        IEnumerator ResetKinematicsAfterDelay(EnemyAI enemy, float delay)
         {
             yield return new WaitForSeconds(delay);
-            Destroy(enemy.gameObject.GetComponent<Rigidbody>());
+            //Destroy(enemy.gameObject.GetComponent<Rigidbody>());
+            enemy.gameObject.GetComponent<Rigidbody>().isKinematic = true;
             enemy.agent.enabled = true;
         }
 
@@ -179,7 +183,7 @@ namespace FlickStick
                     return;
                 }
 
-                if (hit.transform.TryGetComponent<EnemyAICollisionDetect>(out EnemyAICollisionDetect enemyCollision)) // TODO: Look for EnemyAICollisionDetect, look at the shootgun function again
+                if (hit.transform.TryGetComponent<EnemyAICollisionDetect>(out EnemyAICollisionDetect enemyCollision))
                 {
                     EnemyAI? enemy = enemyCollision.mainScript;
                     if (enemy == null) { continue; }
@@ -192,7 +196,7 @@ namespace FlickStick
             playerHeldBy.activatingItem = false;
         }
 
-        public void Flip()
+        public void Flip() // TODO: Make this do things depending on the enemy manually
         {
             logger.LogDebug("In Flip()");
             hits = GetRaycastHits(flipoffRange, 30f);
