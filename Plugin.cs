@@ -38,6 +38,13 @@ namespace FlickStick
 
         public static ConfigEntry<bool> configEnableStore;
         public static ConfigEntry<int> configStorePrice;
+
+        public static ConfigEntry<float> configPokeStunTime;
+        public static ConfigEntry<float> configPokeForce;
+        public static ConfigEntry<float> configFlickForce;
+        public static ConfigEntry<float> configFlipOffRange;
+        public static ConfigEntry<float> configPokeRange;
+        public static ConfigEntry<float> configFlickRange;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
 
@@ -65,6 +72,13 @@ namespace FlickStick
 
             configEnableStore = Config.Bind("Store", "Enable Store", true, "Whether or not the flickstick should be buyable in the store.");
             configStorePrice = Config.Bind("Store", "Store Price", 300, "Price of the flickstick in the store.");
+
+            configPokeStunTime = Config.Bind("General", "Poke Stun Time", 1f, "Time the poke function stuns an enemy.");
+            configPokeForce = Config.Bind("General", "Poke Force", 15f, "How much force is applied to a player when the poke is used.");
+            configFlickForce = Config.Bind("General", "Flick Force", 30f, "How much force is applied to an enemy or player when the flick is used.");
+            configFlipOffRange = Config.Bind("General", "Flipp Off Range", 30f, "How far the flip taunts the enemy");
+            configPokeRange = Config.Bind("General", "Poke Range", 5f, "The range from the tip of the pointer that an enemy will be poked.");
+            configFlickRange = Config.Bind("General", "Flick Range", 5f, "The range from the tip of the pointer that an enemy will be flicked.");
 
             // Loading Assets
             string sAssemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);

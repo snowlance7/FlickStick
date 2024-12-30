@@ -32,6 +32,11 @@ namespace FlickStick
         const int mask = 524288;
         List<RaycastHit> hits = [];
 
+        // Constants
+        const float forceUpMultiplier = 1f;
+        const float forceForwardMultiplier = 2f;
+        const float forceDuration = 2f;
+
         // Configs
         float pokeStunTime = 1f;
         float pokeForce = 15f;
@@ -48,6 +53,13 @@ namespace FlickStick
             {
                 ScanNode.headerText = "Flicky Flicky Willy Donker";
             }
+
+            pokeStunTime = configPokeStunTime.Value;
+            pokeForce = configPokeForce.Value;
+            flickForce = configFlickForce.Value;
+            flipoffRange = configFlipOffRange.Value;
+            pokeRange = configPokeRange.Value;
+            flickRange = configFlickRange.Value;
         }
 
         public override void Update()
@@ -117,32 +129,39 @@ namespace FlickStick
         public List<RaycastHit> GetRaycastHits(float distance = 1f, float radius = 1f)
         {
             if (previousPlayerHeldBy == null) { return new List<RaycastHit>(); }
-            VisualizeSphereCast(PointerTip.position, previousPlayerHeldBy.playerEye.transform.forward, radius, distance, 5f);
+            //VisualizeSphereCast(PointerTip.position, previousPlayerHeldBy.playerEye.transform.forward, radius, distance, 5f);
             return Physics.SphereCastAll(PointerTip.position, radius, previousPlayerHeldBy.playerEye.transform.forward, distance, mask, QueryTriggerInteraction.Collide).ToList();
         }
 
-        void AddForce(EnemyAI enemy, float force, float duration = 1f) // TODO: Works but the enemies can clip into walls
+        void AddForce(EnemyAI enemy, float force)
         {
             if (previousPlayerHeldBy == null) { logger.LogError("previousPlayerHeldBy is null"); return; }
-            Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized;
-            Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized * 2;
+            Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized * forceForwardMultiplier;
+            Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized * forceUpMultiplier;
             Vector3 direction = (forwardDirection + upDirection).normalized;
 
-            //Rigidbody rb = enemy.gameObject.TryGetComponent<Rigidbody>(out Rigidbody _rb) ? _rb : enemy.gameObject.AddComponent<Rigidbody>();
-            if (!enemy.gameObject.TryGetComponent<Rigidbody>(out Rigidbody rb)) { logger.LogWarning("Couldnt get rigidbody for enemy " + enemy.enemyType.enemyName); return; }
+            bool usingEnemyRb = true;
+            Rigidbody rb;
+            
+            if (!enemy.gameObject.TryGetComponent<Rigidbody>(out rb))
+            {
+                usingEnemyRb = false;
+                rb = enemy.gameObject.AddComponent<Rigidbody>();
+            }
+
             enemy.agent.enabled = false;
             rb.isKinematic = false;
 
             rb.velocity = Vector3.zero;
             rb.AddForce(direction.normalized * force, ForceMode.Impulse);
-            StartCoroutine(ResetKinematicsAfterDelay(enemy, duration));
+            StartCoroutine(ResetKinematicsAfterDelay(enemy, usingEnemyRb));
         }
 
-        void AddForce(PlayerControllerB player, float force, float duration = 1f)
+        void AddForce(PlayerControllerB player, float force, float duration = 0.1f)
         {
             if (previousPlayerHeldBy == null) { logger.LogError("previousPlayerHeldBy is null"); return; }
-            Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized;
-            Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized * 2;
+            Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized * forceForwardMultiplier;
+            Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized * forceUpMultiplier;
             Vector3 direction = (forwardDirection + upDirection).normalized;
 
             Rigidbody rb = player.playerRigidbody;
@@ -158,11 +177,19 @@ namespace FlickStick
             player.playerRigidbody.isKinematic = true;
         }
 
-        IEnumerator ResetKinematicsAfterDelay(EnemyAI enemy, float delay)
+        IEnumerator ResetKinematicsAfterDelay(EnemyAI enemy, bool usingEnemyRb)
         {
-            yield return new WaitForSeconds(delay);
-            //Destroy(enemy.gameObject.GetComponent<Rigidbody>());
-            enemy.gameObject.GetComponent<Rigidbody>().isKinematic = true;
+            yield return new WaitForSeconds(forceDuration);
+
+            if (usingEnemyRb)
+            {
+                enemy.gameObject.GetComponent<Rigidbody>().isKinematic = true;
+            }
+            else
+            {
+                Destroy(enemy.gameObject.GetComponent<Rigidbody>());
+            }
+
             enemy.agent.enabled = true;
         }
 
@@ -188,7 +215,6 @@ namespace FlickStick
                     EnemyAI? enemy = enemyCollision.mainScript;
                     if (enemy == null) { continue; }
                     logger.LogDebug(enemy.enemyType.enemyName);
-                    AddForce(enemy, pokeForce);
                     enemy.SetEnemyStunned(true, 1f, previousPlayerHeldBy);
                 }
             }
@@ -196,21 +222,24 @@ namespace FlickStick
             playerHeldBy.activatingItem = false;
         }
 
-        public void Flip() // TODO: Make this do things depending on the enemy manually
+        public void Flip()
         {
             logger.LogDebug("In Flip()");
             hits = GetRaycastHits(flipoffRange, 30f);
+            RoundManager.Instance.PlayAudibleNoise(transform.position);
+            ItemAudio.PlayOneShot(SlideSFX);
 
             logger.LogDebug("Flipped off:");
             foreach (var hit in hits)
             {
                 logger.LogDebug(hit.transform.gameObject.name);
-                if (hit.transform.gameObject.TryGetComponent<EnemyAICollisionDetect>(out EnemyAICollisionDetect enemyCollision)) // TODO: Not working for thumpers or other enemies
+                if (hit.transform.gameObject.TryGetComponent<EnemyAICollisionDetect>(out EnemyAICollisionDetect enemyCollision))
                 {
                     EnemyAI? enemy = enemyCollision.mainScript;
                     if (enemy == null) { continue; }
                     logger.LogDebug(enemy.enemyType.enemyName);
                     enemy.targetPlayer = previousPlayerHeldBy;
+                    enemy.HitEnemy(0, previousPlayerHeldBy);
                 }
             }
 
@@ -221,6 +250,8 @@ namespace FlickStick
         {
             logger.LogDebug("In Flick()");
             hits = GetRaycastHits(flickRange);
+            RoundManager.Instance.PlayAudibleNoise(transform.position);
+            ItemAudio.PlayOneShot(BoingSFX);
 
             logger.LogDebug("Flicked:");
             foreach (var hit in hits)
@@ -249,41 +280,6 @@ namespace FlickStick
         {
             playerHeldBy.activatingItem = false;
             logger.LogDebug("Activating item false called");
-        }
-
-        void VisualizeSphereCastOld(Vector3 origin, Vector3 direction, float radius, float maxDistance, float duration)
-        {
-            // Draw the initial sphere
-            GameObject startSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            SphereCollider collider1 = startSphere.AddComponent<SphereCollider>();
-            collider1.isTrigger = true;
-            collider1.radius = radius;
-            startSphere.transform.position = origin;
-            startSphere.transform.localScale = Vector3.one * radius * 2; // Diameter is 2 * radius
-            Destroy(startSphere, duration);
-
-            // Draw the path of the sphere cast
-            GameObject endSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            SphereCollider collider2 = endSphere.AddComponent<SphereCollider>();
-            collider2.isTrigger = true;
-            collider2.radius = radius;
-            Vector3 endPosition = origin + direction.normalized * maxDistance;
-            endSphere.transform.position = endPosition;
-            endSphere.transform.localScale = Vector3.one * radius * 2;
-            Destroy(endSphere, duration);
-
-            // Draw a line between the spheres
-            GameObject line = new GameObject("SphereCastLine");
-            LineRenderer lineRenderer = line.AddComponent<LineRenderer>();
-            lineRenderer.positionCount = 2;
-            lineRenderer.SetPosition(0, origin);
-            lineRenderer.SetPosition(1, endPosition);
-            lineRenderer.startWidth = radius * 0.1f;
-            lineRenderer.endWidth = radius * 0.1f;
-            lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            lineRenderer.startColor = Color.red;
-            lineRenderer.endColor = Color.white;
-            Destroy(line, duration);
         }
 
         void VisualizeSphereCast(Vector3 origin, Vector3 direction, float radius, float maxDistance, float duration)
