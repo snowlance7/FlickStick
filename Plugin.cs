@@ -45,6 +45,13 @@ namespace FlickStick
         public static ConfigEntry<float> configFlipOffRange;
         public static ConfigEntry<float> configPokeRange;
         public static ConfigEntry<float> configFlickRange;
+
+        public static ConfigEntry<bool> configEnablePoke;
+        public static ConfigEntry<bool> configEnableFlick;
+        public static ConfigEntry<bool> configEnableFlip;
+
+        public static ConfigEntry<Color> configHandColor;
+        public static ConfigEntry<Color> configHandleColor;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
 
@@ -76,9 +83,16 @@ namespace FlickStick
             configPokeStunTime = Config.Bind("General", "Poke Stun Time", 1f, "Time the poke function stuns an enemy.");
             configPokeForce = Config.Bind("General", "Poke Force", 15f, "How much force is applied to a player when the poke is used.");
             configFlickForce = Config.Bind("General", "Flick Force", 30f, "How much force is applied to an enemy or player when the flick is used.");
-            configFlipOffRange = Config.Bind("General", "Flipp Off Range", 30f, "How far the flip taunts the enemy");
+            configFlipOffRange = Config.Bind("General", "Flipp Off Range", 30f, "How far the flip taunts the enemy.");
             configPokeRange = Config.Bind("General", "Poke Range", 5f, "The range from the tip of the pointer that an enemy will be poked.");
             configFlickRange = Config.Bind("General", "Flick Range", 5f, "The range from the tip of the pointer that an enemy will be flicked.");
+
+            configEnablePoke = Config.Bind("General", "Enable Poke", true, "Whether or not you can use the Poke function.");
+            configEnableFlick = Config.Bind("General", "Enable Flick", true, "Whether or not you can use the Flick function.");
+            configEnableFlip = Config.Bind("General", "Enable Flip", true, "Whether or not you can use the Flip function.");
+
+            configHandColor = Config.Bind("Colors", "Hand Color", Color.white, "Whether or not you can use the Poke function.");
+            configHandleColor = Config.Bind("Colors", "Handle Color", Color.red, "Whether or not you can use the Poke function.");
 
             // Loading Assets
             string sAssemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);

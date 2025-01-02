@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Unity.Netcode;
 using UnityEngine;
 using static FlickStick.Plugin;
 using static UnityEngine.LightAnchor;
@@ -26,9 +27,12 @@ namespace FlickStick
         public Animator animator;
         public Transform PointerTip;
         public ScanNodeProperties ScanNode;
+        public Material HandleMaterial;
+        public Material HandMaterial;
+
+        PlayerControllerB previousPlayerHeldBy;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-        PlayerControllerB? previousPlayerHeldBy;
         const int mask = 524288;
         List<RaycastHit> hits = [];
 
@@ -46,6 +50,10 @@ namespace FlickStick
         float pokeRange = 5f;
         float flickRange = 5f;
 
+        bool flickEnabled = true;
+        bool pokeEnabled = true;
+        bool flipEnabled = true;
+
         public override void Start()
         {
             base.Start();
@@ -60,11 +68,17 @@ namespace FlickStick
             flipoffRange = configFlipOffRange.Value;
             pokeRange = configPokeRange.Value;
             flickRange = configFlickRange.Value;
+            HandMaterial.color = configHandColor.Value;
+            HandleMaterial.color = configHandleColor.Value;
+            flickEnabled = configEnableFlick.Value;
+            pokeEnabled = configEnablePoke.Value;
+            flipEnabled = configEnableFlip.Value;
         }
 
         public override void Update()
         {
             base.Update();
+
             if (playerHeldBy != null)
             {
                 previousPlayerHeldBy = playerHeldBy;
@@ -74,68 +88,74 @@ namespace FlickStick
         public override void EquipItem()
         {
             base.EquipItem();
-            playerHeldBy.equippedUsableItemQE = true;
+            previousPlayerHeldBy = playerHeldBy;
+            previousPlayerHeldBy.equippedUsableItemQE = true;
         }
 
         public override void DiscardItem()
         {
-            playerHeldBy.activatingItem = false;
-            playerHeldBy.equippedUsableItemQE = true;
+            animator.SetTrigger("reset");
+            previousPlayerHeldBy.activatingItem = false;
+            previousPlayerHeldBy.equippedUsableItemQE = true;
             base.DiscardItem();
         }
 
         public override void PocketItem()
         {
-            playerHeldBy.equippedUsableItemQE = true;
+            previousPlayerHeldBy.activatingItem = false;
+            previousPlayerHeldBy.equippedUsableItemQE = true;
             base.PocketItem();
         }
 
         public override void DestroyObjectInHand(PlayerControllerB playerHolding)
         {
-            playerHeldBy.equippedUsableItemQE = true;
+            playerHolding.activatingItem = false;
+            playerHolding.equippedUsableItemQE = true;
             base.DestroyObjectInHand(playerHolding);
         }
 
-        public override void ItemActivate(bool used, bool buttonDown = true)
+        public override void ItemActivate(bool used, bool buttonDown = true) // Synced
         {
             base.ItemActivate(used, buttonDown);
 
-            if (playerHeldBy.activatingItem) { return; }
+            if (!flickEnabled) { return; }
+            if (previousPlayerHeldBy.activatingItem) { return; }
 
             if (buttonDown) // Flick
             {
-                playerHeldBy.activatingItem = true;
+                previousPlayerHeldBy.activatingItem = true;
                 animator.SetTrigger("flick");
             }
         }
 
-        public override void ItemInteractLeftRight(bool right)
+        public override void ItemInteractLeftRight(bool right) // Synced
         {
             base.ItemInteractLeftRight(right);
-            if (playerHeldBy.activatingItem) { return; }
+
+            if (previousPlayerHeldBy.activatingItem) { return; }
 
             if (right) // Poke
             {
-                playerHeldBy.activatingItem = true;
+                if (!pokeEnabled) { return; }
+                previousPlayerHeldBy.activatingItem = true;
                 animator.SetTrigger("poke");
             }
             else // Flip off
             {
-                playerHeldBy.activatingItem = true;
+                if (!flipEnabled) { return; }
+                previousPlayerHeldBy.activatingItem = true;
                 animator.SetTrigger("flip");
             }
         }
 
         public List<RaycastHit> GetRaycastHits(float distance = 1f, float radius = 1f)
         {
-            if (previousPlayerHeldBy == null) { return new List<RaycastHit>(); }
             //VisualizeSphereCast(PointerTip.position, previousPlayerHeldBy.playerEye.transform.forward, radius, distance, 5f);
             return Physics.SphereCastAll(PointerTip.position, radius, previousPlayerHeldBy.playerEye.transform.forward, distance, mask, QueryTriggerInteraction.Collide).ToList();
         }
 
         void AddForce(EnemyAI enemy, float force)
         {
-            if (previousPlayerHeldBy == null) { logger.LogError("previousPlayerHeldBy is null"); return; }
             Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized * forceForwardMultiplier;
             Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized * forceUpMultiplier;
             Vector3 direction = (forwardDirection + upDirection).normalized;
@@ -159,7 +179,6 @@ namespace FlickStick
 
         void AddForce(PlayerControllerB player, float force, float duration = 0.1f)
         {
-            if (previousPlayerHeldBy == null) { logger.LogError("previousPlayerHeldBy is null"); return; }
             Vector3 forwardDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.forward).normalized * forceForwardMultiplier;
             Vector3 upDirection = previousPlayerHeldBy.transform.TransformDirection(Vector3.up).normalized * forceUpMultiplier;
             Vector3 direction = (forwardDirection + upDirection).normalized;
@@ -219,7 +238,7 @@ namespace FlickStick
                 }
             }
 
-            playerHeldBy.activatingItem = false;
+            previousPlayerHeldBy.activatingItem = false;
         }
 
         public void Flip()
@@ -243,7 +262,8 @@ namespace FlickStick
                 }
             }
 
-            playerHeldBy.activatingItem = false;
+            previousPlayerHeldBy.activatingItem = false;
+            logger.LogDebug("activating item: " + previousPlayerHeldBy.activatingItem);
         }
 
         public void Flick()
@@ -273,13 +293,12 @@ namespace FlickStick
                 }
             }
 
-            playerHeldBy.activatingItem = false;
+            previousPlayerHeldBy.activatingItem = false;
         }
 
-        public void ActivatingItemFalse()
+        public void SetActivatingItemFalse()
         {
-            playerHeldBy.activatingItem = false;
-            logger.LogDebug("Activating item false called");
+            previousPlayerHeldBy.activatingItem = false;
         }
 
         void VisualizeSphereCast(Vector3 origin, Vector3 direction, float radius, float maxDistance, float duration)
